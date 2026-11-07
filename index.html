@@ -1,0 +1,373 @@
+```html
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Студенттердің сабаққа қатысу жүйесі</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+header {
+    background: #1e3a8a;
+    color: white;
+    padding: 25px;
+    text-align: center;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 20px;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.card {
+    background: white;
+    padding: 22px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.card h2 {
+    color: #2563eb;
+    font-size: 30px;
+}
+
+.form, .table-box {
+    background: white;
+    padding: 22px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+input, select {
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    margin: 5px;
+}
+
+button {
+    padding: 11px 16px;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    background: #2563eb;
+    color: white;
+}
+
+.delete {
+    background: #dc2626;
+}
+
+.search {
+    width: 100%;
+    margin: 10px 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    padding: 13px;
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    background: #eff6ff;
+}
+
+@media(max-width: 650px) {
+    .stats {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Студенттердің сабаққа қатысу жүйесі</h1>
+    <p>Оқу процесін бақылау және есепке алу бағдарламасы</p>
+</header>
+
+<div class="container">
+
+    <div class="stats">
+
+        <div class="card">
+            <p>Барлық студент</p>
+            <h2 id="total">0</h2>
+        </div>
+
+        <div class="card">
+            <p>Қатысқан</p>
+            <h2 id="presentCount">0</h2>
+        </div>
+
+        <div class="card">
+            <p>Қатыспаған</p>
+            <h2 id="absentCount">0</h2>
+        </div>
+
+    </div>
+
+    <div class="form">
+
+        <h2>Жаңа студент қосу</h2>
+
+        <input type="text" id="name"
+        placeholder="Студенттің аты-жөні">
+
+        <input type="text" id="group"
+        placeholder="Топ атауы">
+
+        <button onclick="addStudent()">
+            Студентті қосу
+        </button>
+
+    </div>
+
+    <div class="table-box">
+
+        <h2>Студенттер тізімі</h2>
+
+        <label>Сабақ күні:</label>
+        <input type="date" id="lessonDate">
+
+        <input type="text"
+        id="search"
+        class="search"
+        placeholder="Студентті іздеу..."
+        oninput="showStudents()">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Аты-жөні</th>
+                    <th>Тобы</th>
+                    <th>Қатысу жағдайы</th>
+                    <th>Әрекет</th>
+                </tr>
+            </thead>
+
+            <tbody id="studentList"></tbody>
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+
+let students = JSON.parse(
+    localStorage.getItem("students")
+) || [];
+
+let attendance = JSON.parse(
+    localStorage.getItem("attendance")
+) || {};
+
+const dateInput = document.getElementById("lessonDate");
+
+dateInput.value = new Date().toLocaleDateString("en-CA");
+
+function saveData() {
+
+    localStorage.setItem(
+        "students",
+        JSON.stringify(students)
+    );
+
+    localStorage.setItem(
+        "attendance",
+        JSON.stringify(attendance)
+    );
+
+}
+
+function addStudent() {
+
+    let name = document.getElementById("name").value.trim();
+
+    let group = document.getElementById("group").value.trim();
+
+    if (name === "" || group === "") {
+        alert("Барлық мәліметті толтырыңыз!");
+        return;
+    }
+
+    students.push({
+        name: name,
+        group: group
+    });
+
+    document.getElementById("name").value = "";
+    document.getElementById("group").value = "";
+
+    saveData();
+    showStudents();
+
+}
+
+function changeStatus(index, status) {
+
+    let date = dateInput.value;
+
+    if (!attendance[date]) {
+        attendance[date] = {};
+    }
+
+    attendance[date][index] = status;
+
+    saveData();
+    showStudents();
+
+}
+
+function deleteStudent(index) {
+
+    if (confirm("Студентті өшіргіңіз келе ме?")) {
+
+        students.splice(index, 1);
+
+        attendance = {};
+
+        saveData();
+        showStudents();
+
+    }
+
+}
+
+function showStudents() {
+
+    let list = document.getElementById("studentList");
+
+    let search = document.getElementById("search")
+        .value.toLowerCase();
+
+    let date = dateInput.value;
+
+    list.innerHTML = "";
+
+    let present = 0;
+    let absent = 0;
+
+    students.forEach((student, index) => {
+
+        let status = attendance[date]?.[index] || "Белгіленбеген";
+
+        if (status === "Қатысты") present++;
+
+        if (status === "Қатыспады") absent++;
+
+        if (
+            !student.name.toLowerCase().includes(search) &&
+            !student.group.toLowerCase().includes(search)
+        ) {
+            return;
+        }
+
+        let row = document.createElement("tr");
+
+        let number = document.createElement("td");
+        number.textContent = index + 1;
+
+        let name = document.createElement("td");
+        name.textContent = student.name;
+
+        let group = document.createElement("td");
+        group.textContent = student.group;
+
+        let statusCell = document.createElement("td");
+
+        let select = document.createElement("select");
+
+        ["Белгіленбеген", "Қатысты", "Қатыспады", "Себепті"].forEach(value => {
+
+            let option = document.createElement("option");
+
+            option.value = value;
+            option.textContent = value;
+
+            if (status === value) {
+                option.selected = true;
+            }
+
+            select.appendChild(option);
+
+        });
+
+        select.onchange = function() {
+            changeStatus(index, this.value);
+        };
+
+        statusCell.appendChild(select);
+
+        let action = document.createElement("td");
+
+        let button = document.createElement("button");
+
+        button.textContent = "Өшіру";
+        button.className = "delete";
+
+        button.onclick = function() {
+            deleteStudent(index);
+        };
+
+        action.appendChild(button);
+
+        row.appendChild(number);
+        row.appendChild(name);
+        row.appendChild(group);
+        row.appendChild(statusCell);
+        row.appendChild(action);
+
+        list.appendChild(row);
+
+    });
+
+    document.getElementById("total").textContent =
+        students.length;
+
+    document.getElementById("presentCount").textContent =
+        present;
+
+    document.getElementById("absentCount").textContent =
+        absent;
+
+}
+
+dateInput.addEventListener("change", showStudents);
+
+showStudents();
+
+</script>
+
+</body>
+</html>
+```
